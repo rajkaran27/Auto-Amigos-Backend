@@ -32,7 +32,7 @@ module.exports = {
             const user_id = req.params.id
 
             try {
-                const sql = `SELECT * FROM orders WHERE user_id = $1`
+                const sql = `select o.*,c.*,i.image_url from orders o join cars c on o.car_id=c.car_id join images i on c.car_id=i.car_id where o.user_id=$1`
                 result = await pool.query(sql, [user_id]);
                 resolve(result.rows)
 

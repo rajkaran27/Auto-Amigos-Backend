@@ -25,7 +25,7 @@ module.exports = {
         return new Promise(async (resolve, reject) => {
             try {
                 const car_id = req.params.id;
-                const sql = `SELECT c.car_id,c.model,c.year,c.price,c.description, i.image_url, category.category_name,category.category_id, brand.*,car_capacity.capacity,car_capacity.id as capacity_id,car_transmission.transmission,car_transmission.id as transmission_id
+                const sql = `SELECT c.car_id,c.model,c.year,c.price,c.description, i.image_url, category.category_name,category.category_id, brand.*,car_capacity.capacity,car_capacity.id as capacity_id,car_transmission.transmission,car_transmission.id as transmission_id,c.condition
                 FROM cars c
                 INNER JOIN images i ON c.car_id = i.car_id
                 INNER JOIN category ON c.category_id = category.category_id 

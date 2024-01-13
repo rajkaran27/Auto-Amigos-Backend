@@ -89,13 +89,14 @@ module.exports = {
       const sql = `
             SELECT c.car_id, c.model, c.year, c.price, c.description, i.image_url, 
                    category.category_name, brand.*, car_capacity.capacity, 
-                   car_transmission.transmission
+                   car_transmission.transmission,car_condition.condition as condition
             FROM cars c
-            INNER JOIN images i ON c.car_id = i.car_id
-            INNER JOIN category ON c.category_id = category.category_id 
-            INNER JOIN brand ON c.brand_id = brand.brand_id 
-            INNER JOIN car_capacity ON c.capacity = car_capacity.id 
-            INNER JOIN car_transmission ON c.transmission = car_transmission.id 
+             JOIN images i ON c.car_id = i.car_id
+             JOIN category ON c.category_id = category.category_id 
+             JOIN brand ON c.brand_id = brand.brand_id 
+             JOIN car_capacity ON c.capacity = car_capacity.id 
+             JOIN car_transmission ON c.transmission = car_transmission.id 
+             JOIN car_condition ON c.condition = car_condition.condition_id
             WHERE c.car_id = $1;
           `;
       const cars = await pool.query(sql, [car_id]);
@@ -346,4 +347,15 @@ module.exports = {
       res.status(500).json({ error: "Internal Server Error" });
     }
   },
+  getCarSellerByCarID: async (req, res) => {
+    try {
+      const car_id = req.params.carId;
+      const sql = `select user_id from cars_seller where car_id=$1`;
+      const result = await pool.query(sql, [car_id]);
+      res.json(result.rows);
+    } catch (error) {
+      console.error("Error getting car seller:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  }
 };
