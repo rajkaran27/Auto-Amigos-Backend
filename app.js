@@ -4,6 +4,7 @@ const cors = require('cors');
 const cloudinary = require('cloudinary').v2;
 const { Server } = require('socket.io');
 const http = require('http');
+const url = process.env.NEXT_PUBLIC_FRONTEND_URL
 
 const carRoutes = require('./api/routes/carRoutes');
 const userRoutes = require('./api/routes/userRoutes');
@@ -19,55 +20,32 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: "http://localhost:3000",
+        origin: url,
         methods: ["GET", "POST"]
     }
 });
 
-// io.on("connection", (socket) => {
-//     console.log(`User Connected: ${socket.id}`);
-
-//     socket.on("join_room", (data) => {
-//         socket.join(data);
-//         console.log(`User with ID: ${socket.id} joined room: ${data}`);
-//     });
-
-//     socket.on("send_message", (data) => {
-//         // Broadcast the message to all clients in the room except the sender
-//         socket.to(data.room).emit("receive_message", data);
-//     });
-
-//     socket.on("disconnect", () => {
-//         console.log("User Disconnected", socket.id);
-//     });
-// });
 
 io.on("connection", (socket) => {
-    console.log(`User Connected: ${socket.id}`);
 
-    socket.on("join_room", (data) => {
-        socket.join(data.room);
-        console.log(`User with ID: ${socket.id} joined room: ${data.room}`);
+    // Join a room
+    socket.on('join room', (chat_id) => {
+        socket.join(chat_id);
     });
 
-    socket.on("send_message", (data) => {
-        // Broadcast the message to all clients in the room except the sender
-        socket.to(data.room).emit("receive_message", data);
+    socket.on('disconnect', () => {
+        const rooms = Object.keys(socket.rooms);
+        rooms.forEach(room => {
+            socket.leave(room);
+        });
     });
 
-    socket.on("disconnect", () => {
-        console.log("User Disconnected", socket.id);
-    });
-
-    // Custom event to create a room based on user IDs
-    socket.on("create_chat_room", (data) => {
-        console.log('hi',data)
-        const room = `user_${data.user1}_${data.user2}`;
-        console.log(room)
-        socket.join(room);
-        console.log(`Room created: ${room}`);
+    // Listen for chat messages and broadcast them to the room
+    socket.on('chat message', (message) => {
+        io.to(message.chat_id).emit('chat message', message);
     });
 });
+
 cloudinary.config({
     secure: true
 });
@@ -89,7 +67,7 @@ app.use('/api', reviewRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/pay', stripeRoutes);
 app.use('/api/orders', orderRoutes);
-app.use('/api/chat', chatRoutes) 
+app.use('/api/chat', chatRoutes)
 
 app.use(function (req, res, next) {
     return next(createHttpError(404, `Unknown Resource ${req.method} ${req.originalUrl}`));
@@ -107,7 +85,7 @@ module.exports = { app, server };
 // const cors = require('cors');
 // const cloudinary = require('cloudinary').v2;
 // const {Server} = require('socket.io');
-// const http = require('http'); 
+// const http = require('http');
 
 // const carRoutes = require('./api/routes/carRoutes');
 // const userRoutes = require('./api/routes/userRoutes');
@@ -119,7 +97,7 @@ module.exports = { app, server };
 // const orderRoutes = require('./api/routes/orderRoutes')
 
 // const app = express();
-// const server = http.createServer(app); 
+// const server = http.createServer(app);
 
 // cloudinary.config({
 //     secure: true

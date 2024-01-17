@@ -205,58 +205,77 @@ module.exports = {
       res.status(500).json({ error: "Internal server error" });
     }
   },
+
   uploadCar: async (req, res) => {
-    try {
-      const {
-        name,
-        brand_id,
-        category,
-        description,
-        capacity,
-        transmission,
-        price,
-        year,
-        user_id,
-      } = req.body;
-
-      // console.log(req.body.user_id);
-
-      const result = await pool.query(
-        "INSERT INTO cars (brand_id, category_id, model, year, price, description, condition, transmission, capacity,carStatus) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,'active') RETURNING car_id",
-        [
+      try {
+        const {
+          name,
           brand_id,
           category,
-          name,
-          year,
-          price,
           description,
-          2,
-          transmission,
           capacity,
-        ]
-      );
+          transmission,
+          price,
+          year,
+          user_id,
+        } = req.body;
 
-      const carId = result.rows[0].car_id;
+        const result = await pool.query(
+          "INSERT INTO cars (brand_id, category_id, model, year, price, description, condition, transmission, capacity,carStatus) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,'active') RETURNING car_id",
+          [
+            brand_id,
+            category,
+            name,
+            year,
+            price,
+            description,
+            2,
+            transmission,
+            capacity,
+          ]
+        );
 
-      await pool.query(
-        "INSERT INTO images (image_url, car_id) VALUES ($1, $2)",
-        [
-          "https://www.lakesidefordferriday.com/resources/components/missing/photo_unavailable_320.gif?bg-color=FFFFFF",
-          carId,
-        ]
-      );
+        const carId = result.rows[0].car_id;
+        
+        await pool.query(
+          "INSERT INTO cars_seller (car_id, user_id) VALUES ($1, $2)",
+          [carId, user_id]
+        );
 
-      await pool.query(
-        "INSERT INTO cars_seller (car_id, user_id) VALUES ($1, $2)",
-        [carId, user_id]
-      );
-
-      res.json({ message: "Car uploaded successfully" });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: "Internal server error" });
-    }
+        res.json(result.rows[0].car_id);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Internal server error" });
+      }
   },
+
+  uploadingImage: async (req, res) => {
+      try {
+        const {
+          car_id,
+          image_url,
+        } = req.body;
+
+        if(image_url === null || image_url === undefined || image_url === ""){
+          image_url = "https://www.lakesidefordferriday.com/resources/components/missing/photo_unavailable_320.gif?bg-color=FFFFFF";
+        }
+
+        const result = await pool.query(
+          "INSERT INTO images (image_url, car_id) VALUES ($1, $2)",
+          [
+            image_url,
+            car_id,
+          ]
+        );
+
+        res.json(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+  },
+
+
   getCarByID2: (req, res) => {
     return new Promise(async (resolve, reject) => {
       try {
@@ -271,7 +290,7 @@ module.exports = {
                 INNER JOIN car_transmission on c.transmission=car_transmission.id 
                 WHERE c.car_id=$1;`;
         const cars = await pool.query(sql, [car_id]);
-        // console.log(cars.rows);
+        console.log(cars.rows);
         resolve(cars.rows);
       } catch (error) {
         reject({ error: "Internal server error" });
@@ -357,5 +376,5 @@ module.exports = {
       console.error("Error getting car seller:", error);
       res.status(500).json({ error: "Internal Server Error" });
     }
-  }
+  },
 };

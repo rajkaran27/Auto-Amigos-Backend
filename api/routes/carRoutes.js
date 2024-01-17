@@ -23,6 +23,7 @@ router.get('/getUserIdByCarId/:carId', carController.getCarSellerByCarID)
 router.post('/getFilteredCars', carController.getCarsByFilter);
 router.post('/createBrand', carController.createBrand);
 router.post('/uploadCar', carController.uploadCar);
+router.post('/uploadingImage', carController.uploadingImage);
 
 router.put('/updateCarUser', carController.updateCarUser);
 router.delete('/deleteCarUser/:id', carController.deleteCarUser);

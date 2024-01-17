@@ -107,7 +107,7 @@ module.exports = {
                 const sql = `SELECT EXISTS (
                     SELECT 1
                     FROM orders
-                    WHERE user_id = $1 AND car_id = $2
+                    WHERE user_id = $1 AND car_id = $2 AND orderstatus = 'Delivered'
                 );`
                 result = await pool.query(sql, [user_id, car_id]);
                 resolve(result.rows[0].exists)

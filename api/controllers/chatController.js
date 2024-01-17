@@ -60,13 +60,26 @@ module.exports = {
 
     },
     sendMessage: async (req, res) => {
-        const {user_id,chat_id,message} = req.body
+        const { chat_id, author_id, message } = req.body;
         try {
             const sql = `INSERT INTO messages (chat_id, author_id, message) VALUES ($1, $2, $3);`;
-            await pool.query(sql, [chat_id, user_id, message]);
+            await pool.query(sql, [chat_id, author_id, message]);
             res.json({message: "Message sent"});
         } catch (error) {
             console.error('Error sending message:', error);
+            res.status(500).send("Internal Server Error");
+        }
+
+    },
+    retrieveAllMessages:async(req,res)=>{
+        const chat_id = req.params.chatId;
+
+        try{
+            const sql = `SELECT * FROM messages WHERE chat_id = $1;`;
+            const messages = await pool.query(sql,[chat_id]);
+            res.json(messages.rows);
+        }catch(error){
+            console.error('Error retrieving messages:', error);
             res.status(500).send("Internal Server Error");
         }
 
