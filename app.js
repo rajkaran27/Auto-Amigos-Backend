@@ -56,8 +56,8 @@ app.use(
     })
 );
 
-app.use('/api/webhook', webhookRoutes);
-app.use(express.json()); // to process JSON in request body
+app.use('/api/webhook', express.raw({type: 'application/json'}), webhookRoutes);
+app.use(express.json()); 
 app.use('/api/admin/', adminUserRoutes);
 app.use('/api', carRoutes);
 app.use('/api', userRoutes);
