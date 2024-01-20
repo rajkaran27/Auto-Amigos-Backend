@@ -28,7 +28,6 @@ const io = new Server(server, {
 
 io.on("connection", (socket) => {
 
-    // Join a room
     socket.on('join room', (chat_id) => {
         socket.join(chat_id);
     });
@@ -40,7 +39,6 @@ io.on("connection", (socket) => {
         });
     });
 
-    // Listen for chat messages and broadcast them to the room
     socket.on('chat message', (message) => {
         io.to(message.chat_id).emit('chat message', message);
     });
