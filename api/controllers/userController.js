@@ -19,6 +19,7 @@ module.exports = {
           return result.rows[0].user_exists;
         } catch (error) {
           console.error("Error checking user existence:", error.message);
+          throw error; // Rethrow the error for better logging
         }
       };
 
@@ -35,6 +36,7 @@ module.exports = {
           return result.rows[0].is_blacklisted;
         } catch (error) {
           console.error("Error checking user blacklist status:", error.message);
+          throw error; // Rethrow the error for better logging
         }
       };
 
@@ -45,10 +47,12 @@ module.exports = {
       ]);
 
       if (!userExists) {
+        console.error("Invalid email or password: User does not exist");
         return res.status(401).json({ error: "Invalid email or password" });
       }
 
       if (isBlacklisted) {
+        console.error("User is blacklisted");
         return res.status(401).json({ error: "User is blacklisted" });
       }
 
@@ -61,7 +65,7 @@ module.exports = {
       const passwordMatch = await bcrypt.compare(password, hashedPassword);
 
       if (!passwordMatch) {
-        return res.status(401).json({ error: "Invalid email or password" });
+        throw new Error("Invalid email or password");
       }
 
       // Password matches, generate a JWT with additional user info
@@ -80,7 +84,90 @@ module.exports = {
 
       res.json({ token });
     } catch (error) {
+      console.error("Login failed:", error.message);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  },
+
+  checkUserBeforeLogin: async function (req, res) {
+    try {
+      const email = req.body.email;
+      // Query the database to check if the email exists
+      const user = await pool.query(
+        "SELECT * FROM users_external WHERE email = $1",
+        [email]
+      );
+
+      // Check if the user with the given email exists
+      if (user.rows.length > 0) {
+        // User exists, return a success response
+        res.json({ exists: true });
+      } else {
+        // User does not exist, return a failure response
+        res.json({ exists: false });
+      }
+    } catch (error) {
       console.error(error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  },
+
+  insertProviderUser: async function (req, res) {
+    try {
+      // Insert the new user into the database
+      const { username, email, fullName } = req.body;
+
+      const newUser = await pool.query(
+        "INSERT INTO users_external (username, email, full_name, created_at) VALUES ($1, $2, $3, NOW()) RETURNING *",
+        [username, email, fullName]
+      );
+
+      console.log("User inserted successfully:", newUser.rows[0]);
+
+      // Send a success response to the client
+      res
+        .status(201)
+        .json({ message: "User inserted successfully", user: newUser.rows[0] });
+    } catch (error) {
+      console.error("Error during insertProviderUser:", error.message);
+
+      // Send an error response to the client
+      res.status(500).json({ error: "Internal server error" });
+    }
+  },
+
+  getProviderUser: async function (req, res) {
+    try {
+      const email = req.body.email;
+
+      // Query the users_external table based on the email
+      const user = await pool.query(
+        "SELECT * FROM users_external WHERE email = $1",
+        [email]
+      );
+
+      if (user.rows.length > 0) {
+        // Generate a token for the user
+        const token = jwt.sign(
+          {
+            userId: user.rows[0].user_id,
+            username: user.rows[0].username,
+            email: user.rows[0].email,
+            is_admin: user.rows[0].is_admin,
+          },
+          jwtSecret,
+          { expiresIn: "1h" }
+          // { expiresIn: 20000 } //20 sec for testing
+        );
+
+        // User found, send the user data and token in the response
+        res.json({ user: user.rows[0], token });
+      } else {
+        // User not found, send an appropriate response
+        res.status(404).json({ error: "User not found" });
+      }
+    } catch (error) {
+      console.error("Error during getProviderUser:", error.message);
       res.status(500).json({ error: "Internal server error" });
     }
   },
@@ -131,21 +218,17 @@ module.exports = {
       ]);
 
       if (userExists) {
-        return res
-          .status(400)
-          .json({
-            error: "EMAIL_ALREADY_REGISTERED",
-            message: "Email is already registered",
-          });
+        return res.status(400).json({
+          error: "EMAIL_ALREADY_REGISTERED",
+          message: "Email is already registered",
+        });
       }
 
       if (!isOver18) {
-        return res
-          .status(400)
-          .json({
-            error: "USER_NOT_OLD_ENOUGH",
-            message: "User must be 18 or older",
-          });
+        return res.status(400).json({
+          error: "USER_NOT_OLD_ENOUGH",
+          message: "User must be 18 or older",
+        });
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -201,7 +284,7 @@ module.exports = {
       if (user.rows.length === 0) {
         return res.status(404).json({ error: "User not found" });
       }
-
+      console.log('user.rows[0]', user.rows[0])
       // Return the user data
       res.json(user.rows[0]);
     } catch (error) {
@@ -210,40 +293,19 @@ module.exports = {
     }
   },
 
-  //(TODO)send another check if this user has this account for server validation
-  // Controller function to update user profile
+  // Controller function to update user profile (separate from password update)
   updateProfile: async function (req, res) {
     try {
-      // console.log("Request headers:", req.headers);
       const userId = req.params.userId;
-      const {
-        username,
-        email,
-        password,
-        firstname,
-        lastname,
-        phonenumber,
-        gender,
-      } = req.body;
-
-      // Hash the password before updating
-      const hashedPassword = await bcrypt.hash(password, 10);
+      const { username, email, firstname, lastname, phonenumber, gender, dob } =
+        req.body;
 
       const result = await pool.query(
         `UPDATE users 
-         SET username = $1, email = $2, password = $3, firstname = $4, lastname = $5, phonenumber = $6, gender = $7
+        SET username = $1, email = $2, firstname = $3, lastname = $4, phonenumber = $5, gender = $6, dob = $7
          WHERE user_id = $8 
          RETURNING *`,
-        [
-          username,
-          email,
-          hashedPassword,
-          firstname,
-          lastname,
-          phonenumber,
-          gender,
-          userId,
-        ]
+        [username, email, firstname, lastname, phonenumber, gender, dob, userId]
       );
 
       const updatedUser = result.rows[0];

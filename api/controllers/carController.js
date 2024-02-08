@@ -172,6 +172,9 @@ module.exports = {
   getListedCarsUsingID: async (req, res) => {
     try {
       const user_id = req.params.id;
+      const limit = parseInt(req.query.limit) || 9; // Default limit to 9 if not provided
+      const offset = parseInt(req.query.offset) || 0; // Default offset to 0 if not provided
+
       const sql = `SELECT c.car_id,c.model,c.year,c.price,c.description, i.image_url, cat.category_name, b.*,cc.capacity,ct.transmission
             FROM cars c
             INNER JOIN cars_seller cs ON c.car_id = cs.car_id
@@ -180,11 +183,14 @@ module.exports = {
             INNER JOIN brand b ON c.brand_id = b.brand_id
             INNER JOIN car_capacity cc ON c.capacity = cc.id
             INNER JOIN car_transmission ct ON c.transmission = ct.id
-            WHERE cs.user_id = $1 and c.carstatus = 'active';`;
-      const cars = await pool.query(sql, [user_id]);
-      // console.log(cars);
+            WHERE cs.user_id = $1 and c.carstatus = 'active'
+            ORDER BY c.car_id DESC
+            LIMIT $2 OFFSET $3;`; // Use LIMIT and OFFSET clauses
+
+      const cars = await pool.query(sql, [user_id, limit, offset]);
       res.json(cars.rows);
     } catch (error) {
+      console.error(error);
       res.status(500).json({ error: "Internal server error" });
     }
   },
@@ -207,74 +213,63 @@ module.exports = {
   },
 
   uploadCar: async (req, res) => {
-      try {
-        const {
-          name,
+    try {
+      const {
+        name,
+        brand_id,
+        category,
+        description,
+        capacity,
+        transmission,
+        price,
+        year,
+        user_id,
+      } = req.body;
+
+      const result = await pool.query(
+        "INSERT INTO cars (brand_id, category_id, model, year, price, description, condition, transmission, capacity,carStatus) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,'active') RETURNING car_id",
+        [
           brand_id,
           category,
-          description,
-          capacity,
-          transmission,
-          price,
+          name,
           year,
-          user_id,
-        } = req.body;
+          price,
+          description,
+          2,
+          transmission,
+          capacity,
+        ]
+      );
 
-        const result = await pool.query(
-          "INSERT INTO cars (brand_id, category_id, model, year, price, description, condition, transmission, capacity,carStatus) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,'active') RETURNING car_id",
-          [
-            brand_id,
-            category,
-            name,
-            year,
-            price,
-            description,
-            2,
-            transmission,
-            capacity,
-          ]
-        );
+      const carId = result.rows[0].car_id;
 
-        const carId = result.rows[0].car_id;
-        
-        await pool.query(
-          "INSERT INTO cars_seller (car_id, user_id) VALUES ($1, $2)",
-          [carId, user_id]
-        );
+      await pool.query(
+        "INSERT INTO cars_seller (car_id, user_id) VALUES ($1, $2)",
+        [carId, user_id]
+      );
 
-        res.json(result.rows[0].car_id);
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Internal server error" });
-      }
+      res.json(result.rows[0].car_id);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Internal server error" });
+    }
   },
 
   uploadingImage: async (req, res) => {
-      try {
-        const {
-          car_id,
-          image_url,
-        } = req.body;
+    try {
+      const { car_id, image_url } = req.body;
 
-        if(image_url === null || image_url === undefined || image_url === ""){
-          image_url = "https://www.lakesidefordferriday.com/resources/components/missing/photo_unavailable_320.gif?bg-color=FFFFFF";
-        }
+      const result = await pool.query(
+        "INSERT INTO images (image_url, car_id) VALUES ($1, $2)",
+        [image_url, car_id]
+      );
 
-        const result = await pool.query(
-          "INSERT INTO images (image_url, car_id) VALUES ($1, $2)",
-          [
-            image_url,
-            car_id,
-          ]
-        );
-
-        res.json(result);
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Internal server error" });
-      }
+      res.json(result);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Internal server error" });
+    }
   },
-
 
   getCarByID2: (req, res) => {
     return new Promise(async (resolve, reject) => {
@@ -374,6 +369,92 @@ module.exports = {
       res.json(result.rows);
     } catch (error) {
       console.error("Error getting car seller:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  },
+  getCarByQuiz: async (req, res) => {
+    try {
+      // Extract necessary parameters from the request
+      const catID = req.body.category;
+      const brandID = req.body.brand_id;
+      const capID = req.body.capacity;
+      const transID = req.body.transmission;
+
+      // Construct the SQL query
+      const sql = `SELECT c.*, i.image_url, category.category_name, brand.*,car_condition.condition
+      FROM cars c
+      INNER JOIN images i ON c.car_id = i.car_id
+      INNER JOIN category ON c.category_id = category.category_id
+      INNER JOIN brand ON c.brand_id = brand.brand_id
+      INNER JOIN car_condition ON c.condition = car_condition.condition_id
+      WHERE c.carStatus = 'active' 
+      AND c.category_id = $1
+      AND c.brand_id = $2
+      AND c.capacity = $3
+      AND c.transmission = $4`;
+
+      // Execute the query
+      const result = await pool.query(sql, [catID, brandID, capID, transID]);
+
+      // Return the results
+      res.json(result.rows);
+    } catch (error) {
+      console.error("Error getting cars by quiz:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  },
+
+  UploadRentalRecord: async (req, res) => {
+    try {
+      console.log(req.body.from, req.body.to, req.body.price);
+      const { car_id, user_id, from, to, price } = req.body;
+
+      const sql = `INSERT INTO rental_records (car_id, user_id, rental_price, date_from, date_to) VALUES ($1, $2, $3, $4, $5)`;
+      await pool.query(sql, [
+        car_id,
+        user_id,
+        price,
+        new Date(parseInt(from)),
+        new Date(parseInt(to)),
+      ]); // Execute the SQL query
+      return res.status(200).json(); // Return success status
+    } catch (error) {
+      console.error("Error occurred during API call:", error);
+      return res.status(500).json(); // Return error status
+    }
+  },
+  getRentalRecordByUserID: async (req, res) => {
+    try {
+      const user_id = req.params.id;
+      const sql = `SELECT * FROM rental_records rr
+            JOIN cars c ON c.car_id = rr.car_id
+            JOIN images i ON c.car_id = i.car_id
+            JOIN category ON c.category_id = category.category_id 
+            JOIN brand ON c.brand_id = brand.brand_id 
+            JOIN car_capacity ON c.capacity = car_capacity.id 
+            JOIN car_transmission ON c.transmission = car_transmission.id 
+            JOIN car_condition ON c.condition = car_condition.condition_id
+            where user_id = $1;`;
+      const result = await pool.query(sql, [user_id]);
+      res.json(result.rows);
+    } catch (error) {
+      console.error("Error getting rental records:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  },
+  deleteRentalRecord: async (req, res) => {
+    try {
+      const user_id = req.params.id;
+      const car_id = req.params.car_id;
+      const sql = `DELETE FROM rental_records WHERE user_id = $1 AND car_id = $2`;
+      const result = await pool.query(sql, [user_id, car_id]);
+      if (result.rowCount === 1) {
+        res.status(200).json({ message: "Rental record deleted successfully" });
+      } else {
+        res.status(404).json({ error: "Rental record not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting rental record:", error);
       res.status(500).json({ error: "Internal Server Error" });
     }
   },

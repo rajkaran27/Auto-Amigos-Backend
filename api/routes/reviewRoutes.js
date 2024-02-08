@@ -15,6 +15,10 @@ router.get('/getReview/:id', reviewController.getReviewByID);
 router.get('/getReviewByUserID', reviewController.getReviewByUserID);
 router.get('/getReviewByRating', reviewController.getReviewByRating);
 router.get('/ReviewCheck/:carid/:userid', reviewController.ReviewCheck);
+router.get('/getTopRatedCar', reviewController.getTopRatedCar);
+router.get('/getTopRatedBrand', reviewController.getTopRatedBrand);
+router.get('/getAverageRatingByCar', reviewController.getAverageRatingByCar);
+router.get('/getAverageRatingByBrand', reviewController.getAverageRatingByBrand);
 // Update
 router.put('/updateReview/:id', updateReviewController.updateReview);
 // Delete

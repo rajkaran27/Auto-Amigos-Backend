@@ -86,18 +86,7 @@ module.exports = {
             }
         })
     },
-    weeklySalesGraph: function (req) {
-        return new Promise(async function (resolve, reject) {
-            try {
-                const sql = `SELECT date, totalprice FROM orders`
-                result = await pool.query(sql);
-                resolve(result.rows)
-            } catch (error) {
-                reject({ error: "Internal server error" });
-                console.error(error);
-            }
-        })
-    },
+
     // pranjal
     UserIDandCarIDCheck: function (req) {
         return new Promise(async function (resolve, reject) {
@@ -117,10 +106,10 @@ module.exports = {
             }
         })
     },
-    salesByBrandGraph: function (req) {
+    getYearsFromOrders: function (req) {
         return new Promise(async function (resolve, reject) {
             try {
-                const sql = `SELECT brand.brand_name, SUM(orders.totalprice) FROM orders JOIN cars ON orders.car_id = cars.car_id JOIN brand ON cars.brand_id=brand.brand_id GROUP BY brand.brand_name`
+                const sql = `SELECT DISTINCT EXTRACT(YEAR FROM date) as year FROM orders`
                 result = await pool.query(sql);
                 resolve(result.rows)
             } catch (error) {
@@ -152,5 +141,94 @@ module.exports = {
                 console.error(error);
             }
         })
+    },
+    getSalesFromDates: function (req) {
+        return new Promise(async function (resolve, reject) {
+            const { from, to } = req.params;
+            try {
+                let sql;
+                if (from.slice(0, 7) === to.slice(0, 7)) {
+                    sql = `SELECT date,totalprice FROM orders WHERE date >= $1 AND date <= $2 `;
+                } else {
+                    sql = `SELECT to_char(date, 'YYYY-MM') AS month,SUM(totalprice) AS total_sales FROM orders WHERE date >= $1 AND date <= $2 GROUP BY month`;
+                }
+
+                result = await pool.query(sql, [from, to]);
+                resolve(result.rows);
+            } catch (error) {
+                reject({ error: "Internal server error" });
+                console.error(error);
+            }
+        });
+    },
+    SalesGraph: function (req) {
+        return new Promise(async function (resolve, reject) {
+            try {
+                const sql = `SELECT date, totalprice FROM orders`
+                result = await pool.query(sql);
+                resolve(result.rows)
+            } catch (error) {
+                reject({ error: "Internal server error" });
+                console.error(error);
+            }
+        })
+    },
+    salesByBrandGraph: function (req) {
+        return new Promise(async function (resolve, reject) {
+            try {
+                const sql = `SELECT brand.brand_name, SUM(orders.totalprice) FROM orders JOIN cars ON orders.car_id = cars.car_id JOIN brand ON cars.brand_id=brand.brand_id GROUP BY brand.brand_name`
+                result = await pool.query(sql);
+                resolve(result.rows)
+            } catch (error) {
+                reject({ error: "Internal server error" });
+                console.error(error);
+            }
+        })
+    },
+    getTopSellingCarsByBrand: function (req) {
+        return new Promise(async function (resolve, reject) {
+            const brand = req.params.brand
+            try {
+                sql = `SELECT c.model, b.brand_name, sum(o.totalprice) as revenue, count(order_id) as total_orders from cars c join orders o on c.car_id = o.car_id join brand b on c.brand_id = b.brand_id group by c.model, b.brand_name having b.brand_name = $1  order by revenue desc `
+                result = await pool.query(sql, [brand]);
+                resolve(result.rows)
+            } catch (error) {
+                reject({ error: "Internal server error" });
+                console.error(error);
+            }
+        })
+    },
+    getSalesByYear: function (req) {
+        return new Promise(async function (resolve, reject) {
+            const year = req.params.year
+            try {
+                sql = `WITH MonthlySales AS (
+                    SELECT
+                        EXTRACT(YEAR FROM date) AS order_year,
+                        EXTRACT(MONTH FROM date) AS order_month,
+                        SUM(totalprice) AS total_sales
+                    FROM
+                        orders
+                    WHERE
+                        EXTRACT(YEAR FROM date) = $1
+                    GROUP BY
+                        order_year, order_month
+                )
+                SELECT
+                    TO_CHAR(to_date(order_month::text, 'MM'), 'Month') || ' ' || order_year AS month_and_year,
+                    total_sales
+                FROM
+                    MonthlySales
+                ORDER BY
+                    order_year, order_month;
+                `
+                result = await pool.query(sql, [year]);
+                resolve(result.rows)
+            } catch (error) {
+                reject({ error: "Internal server error" });
+                console.error(error);
+            }
+        })
+
     }
 }

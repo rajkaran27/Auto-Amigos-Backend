@@ -5,9 +5,9 @@ const adminUserController = require("../controllers/adminUserController");
 const userController = require("../controllers/userController");
 const adminAuthenticate = require("../../middleware/adminAuthenticate");
 
-router.get("/getAllUsers", adminAuthenticate, adminUserController.getAllUsers);
-router.get("/getUser/:userId", adminAuthenticate, userController.getUserById);
-router.put("/updateProfile/:userId", adminAuthenticate, adminUserController.updateProfile);
+router.get("/getAllUsers", adminUserController.getAllUsers);
+router.get("/getUser/:userId", userController.getUserById);
+router.put("/updateProfile/:userId", adminUserController.updateProfile);
 
 // router.get("/getUser", adminUserController.getUser);
 // router.post("/login", adminUserController.loginUser);

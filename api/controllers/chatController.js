@@ -108,7 +108,7 @@ module.exports = {
         const chat_id = req.params.chatId;
 
         try {
-            const sql = `SELECT c.car_id,cars.model,i.image_url FROM chats c join cars on c.car_id=cars.car_id JOIN images i on c.car_id=i.car_id WHERE c.chat_id = $1;`;
+            const sql = `SELECT c.car_id,cars.model,i.image_url,cars.price FROM chats c join cars on c.car_id=cars.car_id JOIN images i on c.car_id=i.car_id WHERE c.chat_id = $1;`;
             const car = await pool.query(sql, [chat_id]);
             res.json(car.rows)
         } catch (error) {
