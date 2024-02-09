@@ -50,7 +50,7 @@ module.exports = {
         return new Promise(async function (resolve, reject) {
             const order_id = req.params.id
             try {
-                const sql = `UPDATE orders SET orderstatus = 'Cancelled By User' WHERE order_id = $1`
+                const sql = `UPDATE orders SET orderstatus = 'Cancelled' WHERE order_id = $1`
                 result = await pool.query(sql, [order_id]);
                 resolve(result.rows)
 
