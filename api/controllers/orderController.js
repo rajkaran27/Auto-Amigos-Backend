@@ -15,8 +15,20 @@ module.exports = {
             const date = `${year}-${month}-${day}`;
 
             try {
-                const sql = `INSERT INTO orders (car_id,user_id,totalprice,date,paymentintent,orderstatus) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`
+                // const sql = `INSERT INTO orders (car_id,user_id,totalprice,date,paymentintent,orderstatus) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`
+                const sql = `
+                        BEGIN;
 
+                        INSERT INTO orders (car_id, user_id, totalprice, date, paymentintent, orderstatus)
+                        VALUES ($1, $2, $3, $4, $5, $6)
+                        RETURNING *;
+
+                        UPDATE cars
+                        SET carstatus = 'sold'
+                        WHERE car_id = $1 AND condition = 2;
+
+                        COMMIT;
+                `
                 result = await pool.query(sql, [car_id, user_id, price, date, id, status]);
                 resolve(result.rows[0])
 

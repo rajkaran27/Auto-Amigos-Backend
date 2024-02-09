@@ -6,16 +6,8 @@ const userController = require("../controllers/userController");
 const adminAuthenticate = require("../../middleware/adminAuthenticate");
 
 router.get("/getAllUsers", adminUserController.getAllUsers);
+router.get("/getAll", adminUserController.getAll);
 router.get("/getUser/:userId", userController.getUserById);
 router.put("/updateProfile/:userId", adminUserController.updateProfile);
-
-// router.get("/getUser", adminUserController.getUser);
-// router.post("/login", adminUserController.loginUser);
-// router.post("/register", adminUserController.registerUser);
-// router.get("/getUser/:userId", authenticate, adminUserController.getUserById);
-// router.put("/updateProfile/:userId", authenticate, adminUserController.updateProfile);
-
-// //raj
-// router.post('/saveAddress', adminUserController.saveUserAddress);
 
 module.exports = router;

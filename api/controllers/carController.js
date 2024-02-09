@@ -197,6 +197,7 @@ module.exports = {
   getSearchedCar: async (req, res) => {
     try {
       const carSearch = req.params.search;
+      // console.log(carSearch);
       const sql = `SELECT c.*, i.image_url, category.category_name, brand.*,car_condition.condition
             FROM cars c
             INNER JOIN images i ON c.car_id = i.car_id
@@ -456,6 +457,141 @@ module.exports = {
     } catch (error) {
       console.error("Error deleting rental record:", error);
       res.status(500).json({ error: "Internal Server Error" });
+    }
+  },
+
+  // getAllRentees: function (req) {
+  //   return new Promise(async function (resolve, reject) {
+  //     try {
+  //       sql = `SELECT user_id, COUNT(*) AS total_rented_cars, SUM(rental_price) AS total_rental_price
+  //           FROM public.rental_records
+  //           GROUP BY user_id
+  //           ORDER BY total_rented_cars DESC, total_rental_price DESC`;
+  //       result = await pool.query(sql);
+  //       resolve(result.rows);
+  //     } catch (error) {
+  //       reject({ error: "Internal server error" });
+  //       console.error(error);
+  //     }
+  //   });
+  // },
+
+  getTopRenteeInfo: function (req) {
+    return new Promise(async function (resolve, reject) {
+      try {
+        sql = `SELECT u.username, u.email, COUNT(rr.*) AS total_rented_cars, SUM(rr.rental_price) AS total_rental_price
+        FROM public.rental_records rr
+        JOIN public.users u ON rr.user_id = u.user_id
+        GROUP BY u.user_id, u.username, u.email
+        ORDER BY total_rented_cars DESC, total_rental_price DESC
+        LIMIT 1;`;
+
+        result = await pool.query(sql);
+
+        resolve(result.rows[0]);
+      } catch (error) {
+        reject({ error: "Internal server error" });
+        console.error(error);
+      }
+    });
+  },
+
+  getTopRentedCar: function (req) {
+    return new Promise(async function (resolve, reject) {
+      try {
+        sql = `SELECT c.model, COUNT(rr.*) AS total_rented_times
+        FROM public.rental_records rr
+        JOIN public.cars c ON rr.car_id = c.car_id
+        GROUP BY c.car_id, c.model
+        ORDER BY total_rented_times DESC
+        LIMIT 1;`;
+
+        result = await pool.query(sql);
+
+        resolve(result.rows[0]);
+      } catch (error) {
+        reject({ error: "Internal server error" });
+        console.error(error);
+      }
+    });
+  },
+
+  getAllUserRental: function (req) {
+    return new Promise(async function (resolve, reject) {
+      try {
+        sql = `SELECT u.username, u.email, COUNT(rr.*) AS total_rented_cars, SUM(rr.rental_price) AS total_rental_price
+        FROM public.rental_records rr
+        JOIN public.users u ON rr.user_id = u.user_id
+        GROUP BY u.user_id, u.username, u.email
+        ORDER BY total_rented_cars DESC, total_rental_price DESC`;
+
+        result = await pool.query(sql);
+
+        const rentedCars = result.rows.map((res) => ({
+          username: res.username,
+          email: res.email,
+          total_rented: res.total_rented_cars,
+          total_rental_price: res.total_rental_price,
+        }));
+
+        resolve(rentedCars);
+      } catch (error) {
+        reject({ error: "Internal server error" });
+        console.error(error);
+      }
+    });
+  },
+
+  getAllRentedCar: function (req) {
+    return new Promise(async function (resolve, reject) {
+      try {
+        sql = `SELECT c.model, COUNT(rr.car_id) AS total_rented
+        FROM public.rental_records rr
+        JOIN public.cars c ON rr.car_id = c.car_id
+        GROUP BY c.model`;
+
+        result = await pool.query(sql);
+
+        const rentedCars = result.rows.map((res) => ({
+          carModel: res.model,
+          timesRented: res.total_rented,
+        }));
+
+        resolve(rentedCars);
+      } catch (error) {
+        reject({ error: "Internal server error" });
+        console.error(error);
+      }
+    });
+  },
+
+  //CHANGE ALL OF THIS
+  getAverageRatingByBrand: async (req, res) => {
+    try {
+      // Query to get the average rating for each car
+      const averageRatingByBrandQuery = `
+        SELECT brand.brand_name AS brand_name, ROUND(AVG(ratings.rating)) AS average_rating
+        FROM cars
+        JOIN ratings ON cars.car_id = ratings.car_id
+        JOIN brand ON cars.brand_id = brand.brand_id
+        GROUP BY brand.brand_name
+        ORDER BY brand_name;
+        `;
+
+      const averageRatingByBrandResult = await pool.query(
+        averageRatingByBrandQuery
+      );
+      const averageRatings = averageRatingByBrandResult.rows;
+
+      res.json(
+        averageRatings.map((rating) => ({
+          brandName: rating.brand_name,
+          rating: rating.average_rating,
+        }))
+      );
+    } catch (error) {
+      console.error(error.message);
+      res.status(500).json({ error: "Internal server error" });
     }
   },
 };
