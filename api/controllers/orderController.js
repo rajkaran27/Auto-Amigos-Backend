@@ -15,21 +15,12 @@ module.exports = {
             const date = `${year}-${month}-${day}`;
 
             try {
-                // const sql = `INSERT INTO orders (car_id,user_id,totalprice,date,paymentintent,orderstatus) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`
-                const sql = `
-                        BEGIN;
-
-                        INSERT INTO orders (car_id, user_id, totalprice, date, paymentintent, orderstatus)
-                        VALUES ($1, $2, $3, $4, $5, $6)
-                        RETURNING *;
-
-                        UPDATE cars
-                        SET carstatus = 'sold'
-                        WHERE car_id = $1 AND condition = 2;
-
-                        COMMIT;
-                `
+                const sql = `INSERT INTO orders (car_id,user_id,totalprice,date,paymentintent,orderstatus) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`
+                
                 result = await pool.query(sql, [car_id, user_id, price, date, id, status]);
+                
+                const sql2= `UPDATE cars SET carstatus = 'sold' WHERE car_id = $1 AND condition = 2`
+                result2 = await pool.query(sql2, [car_id]);
                 resolve(result.rows[0])
 
             } catch (error) {
@@ -108,7 +99,7 @@ module.exports = {
                 const sql = `SELECT EXISTS (
                     SELECT 1
                     FROM orders
-                    WHERE user_id = $1 AND car_id = $2 AND orderstatus = 'Delivered'
+                    WHERE (user_id = $1 AND car_id = $2) AND orderstatus = 'Payment Succeeded'
                 );`
                 result = await pool.query(sql, [user_id, car_id]);
                 resolve(result.rows[0].exists)
@@ -176,7 +167,7 @@ module.exports = {
     SalesGraph: function (req) {
         return new Promise(async function (resolve, reject) {
             try {
-                const sql = `SELECT date, totalprice FROM orders`
+                const sql = `SELECT date, totalprice FROM orders ORDER BY date ASC`
                 result = await pool.query(sql);
                 resolve(result.rows)
             } catch (error) {
